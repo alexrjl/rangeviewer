@@ -192,7 +192,7 @@ body.dark-mode .hand-pattern {
 .card.small-card {
   width: 30px;
   height: 42px; /* Maintaining 5:7 aspect ratio */
-  font-size: 14px;
+  font-size: 16px;
   margin-right: 5px;
   color: black; /* Black text for better readability */
   text-shadow: none; /* Remove text shadow for cleaner look */
