@@ -13,6 +13,12 @@ const resultsContainer = document.getElementById('results');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+  // Apply dark mode by default
+  document.body.classList.add('dark-mode');
+  
+  // Create theme toggle button
+  createThemeToggle();
+  
   // Load the compressed JSON data
   fetch('comprangedict.json')
     .then(response => {
@@ -41,6 +47,21 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     });
 });
+
+// Create theme toggle button
+function createThemeToggle() {
+  const toggleButton = document.createElement('button');
+  toggleButton.className = 'theme-toggle';
+  toggleButton.innerHTML = '🌓';
+  toggleButton.setAttribute('aria-label', 'Toggle dark mode');
+  toggleButton.setAttribute('title', 'Toggle dark mode');
+  
+  toggleButton.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+  });
+  
+  document.body.appendChild(toggleButton);
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -165,9 +186,9 @@ function renderHandVisualization(rankCombo, patternId) {
   // Define card colors based on the suitedness pattern
   const cardColors = getColorsForPattern(pattern, cards);
   
-  // Create the card elements
+  // Create the card elements with the small-card class
   const cardElements = cards.map((rank, index) => 
-    `<div class="card" style="background-color: ${cardColors[index]}">
+    `<div class="card small-card" style="background-color: ${cardColors[index]}">
        ${rank.toUpperCase()}
      </div>`
   ).join('');
@@ -177,12 +198,12 @@ function renderHandVisualization(rankCombo, patternId) {
 
 // Get colors for pattern
 function getColorsForPattern(pattern, cards) {
-  // Color mapping
+  // Color mapping (with better contrast for dark mode)
   const colors = {
-    club: '#5FAD56',    // Green
-    heart: '#F2545B',   // Red
-    diamond: '#4A8FE7', // Blue
-    spade: '#F9C846'    // Yellow
+    club: '#6FBD66',    // Brighter Green
+    heart: '#FF6B70',   // Brighter Red
+    diamond: '#5B9FF7', // Brighter Blue
+    spade: '#FFD866'    // Brighter Yellow
   };
   
   // Assign colors based on pattern
@@ -228,8 +249,9 @@ function renderActions(actions) {
   if (actions["100BB BB 5bet"] > 0) bbResponse = "5bet";
   else if (actions["100BB BB Cv4bet"] > 0) bbResponse = "Call";
   
+  // Use the actions-horizontal class for side-by-side display
   return `
-    <div class="actions">
+    <div class="actions actions-horizontal">
       <div class="sb-action">SB: ${sbOpen}/${sbResponse}</div>
       <div class="bb-action">BB: ${bbAction}/${bbResponse}</div>
     </div>
