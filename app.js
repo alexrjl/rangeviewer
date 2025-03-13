@@ -198,19 +198,19 @@ function renderActions(actions) {
   }
   
   // Process SB actions
-  const sbOpen = actions["100BB SB open"] > 0 ? "O" : "F";
-  let sbResponse = "F";
-  if (actions["100BB SB 4bet"] > 0) sbResponse = "4b";
-  else if (actions["100BB SB Cv3bet"] > 0) sbResponse = "C";
+  const sbOpen = actions["100BB SB open"] > 0 ? "Raise" : "Fold";
+  let sbResponse = "Fold";
+  if (actions["100BB SB 4bet"] > 0) sbResponse = "4bet";
+  else if (actions["100BB SB Cv3bet"] > 0) sbResponse = "Call";
   
   // Process BB actions
-  let bbAction = "F";
-  if (actions["100BB BB 3bet"] > 0) bbAction = "3b";
-  else if (actions["100BB BB call"] > 0) bbAction = "C";
+  let bbAction = "Fold";
+  if (actions["100BB BB 3bet"] > 0) bbAction = "3bet";
+  else if (actions["100BB BB call"] > 0) bbAction = "Call";
   
-  let bbResponse = "F";
-  if (actions["100BB BB 5bet"] > 0) bbResponse = "5b";
-  else if (actions["100BB BB Cv4bet"] > 0) bbResponse = "C";
+  let bbResponse = "Fold";
+  if (actions["100BB BB 5bet"] > 0) bbResponse = "5bet";
+  else if (actions["100BB BB Cv4bet"] > 0) bbResponse = "Call";
   
   return `
     <div class="actions">
