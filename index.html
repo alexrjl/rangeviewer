@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PLO Hand Lookup</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>PLO Hand Lookup</h1>
+      <div class="search-container">
+        <input type="text" id="search-input" placeholder="Enter 1-4 card ranks (e.g., ak3t)" maxlength="4">
+        <button id="clear-button">Clear</button>
+      </div>
+    </header>
+    
+    <main>
+      <div id="results" class="results-container">
+        <!-- Results will be populated here -->
+        <div class="initial-message">Enter card ranks to see matching hands</div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>
