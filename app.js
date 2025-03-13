@@ -160,8 +160,27 @@ function displayResults(matches) {
       return;
     }
     
+    // Define the order of patterns
+    const patternOrder = {
+      'double': 1,
+      'single_high': 2,
+      'single_low': 3,
+      'trip_high': 4,
+      'trip_low': 5,
+      'mono': 6,
+      'rainbow': 7
+    };
+    
+    // Convert to array and sort by custom order
+    const sortedPatterns = Object.entries(patterns)
+      .sort((a, b) => {
+        const orderA = patternOrder[a[0]] || 999;
+        const orderB = patternOrder[b[0]] || 999;
+        return orderA - orderB;
+      });
+    
     // Create elements for each suitedness pattern
-    Object.entries(patterns).forEach(([patternId, actions]) => {
+    sortedPatterns.forEach(([patternId, actions]) => {
       const patternElement = document.createElement('div');
       patternElement.className = 'hand-pattern';
       
