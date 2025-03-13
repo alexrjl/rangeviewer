@@ -13,6 +13,9 @@ const resultsContainer = document.getElementById('results');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+  // Apply dark mode styles to body
+  document.body.classList.add('dark-mode');
+  
   // Load the compressed JSON data
   fetch('comprangedict.json')
     .then(response => {
@@ -167,7 +170,7 @@ function renderHandVisualization(rankCombo, patternId) {
   
   // Create the card elements
   const cardElements = cards.map((rank, index) => 
-    `<div class="card" style="background-color: ${cardColors[index]}">
+    `<div class="card small-card" style="background-color: ${cardColors[index]}">
        ${rank.toUpperCase()}
      </div>`
   ).join('');
@@ -177,12 +180,12 @@ function renderHandVisualization(rankCombo, patternId) {
 
 // Get colors for pattern
 function getColorsForPattern(pattern, cards) {
-  // Color mapping
+  // Color mapping for dark mode (slightly adjusted for better contrast)
   const colors = {
-    club: '#5FAD56',    // Green
-    heart: '#F2545B',   // Red
-    diamond: '#4A8FE7', // Blue
-    spade: '#F9C846'    // Yellow
+    club: '#6FBD66',    // Brighter Green
+    heart: '#FF6B70',   // Brighter Red
+    diamond: '#5B9FF7', // Brighter Blue
+    spade: '#FFD866'    // Brighter Yellow
   };
   
   // Assign colors based on pattern
@@ -229,7 +232,7 @@ function renderActions(actions) {
   else if (actions["100BB BB Cv4bet"] > 0) bbResponse = "Call";
   
   return `
-    <div class="actions">
+    <div class="actions actions-horizontal">
       <div class="sb-action">SB: ${sbOpen}/${sbResponse}</div>
       <div class="bb-action">BB: ${bbAction}/${bbResponse}</div>
     </div>
@@ -248,3 +251,84 @@ function debounce(func, wait) {
     }, wait);
   };
 }
+
+// Add CSS styles for dark mode and layout changes
+document.head.insertAdjacentHTML('beforeend', `
+<style>
+  /* Dark mode styles */
+  body.dark-mode {
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+  }
+  
+  /* Input fields in dark mode */
+  body.dark-mode input {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+  }
+  
+  /* Button styles */
+  body.dark-mode button {
+    background-color: #45475a;
+    color: #cdd6f4;
+    border: none;
+  }
+  
+  body.dark-mode button:hover {
+    background-color: #585b70;
+  }
+  
+  /* Container backgrounds */
+  body.dark-mode .hand-group {
+    background-color: #313244;
+    border: 1px solid #45475a;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 5px;
+  }
+  
+  body.dark-mode .initial-message,
+  body.dark-mode .no-results,
+  body.dark-mode .loading,
+  body.dark-mode .error-message {
+    color: #bac2de;
+  }
+  
+  /* Header styles */
+  body.dark-mode h3 {
+    color: #89b4fa;
+    margin-top: 0;
+    border-bottom: 1px solid #45475a;
+    padding-bottom: 5px;
+  }
+  
+  /* Card styles - smaller size */
+  .small-card {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    margin: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+  }
+  
+  /* Horizontal layout for actions */
+  .actions-horizontal {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+  
+  .sb-action, .bb-action {
+    flex: 1;
+    padding: 5px 10px;
+    background-color: #45475a;
+    border-radius: 3px;
+    margin: 0 3px;
+    text-align: center;
+  }
+</style>
+`);
