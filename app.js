@@ -69,22 +69,38 @@ function handleSearch() {
   }
   
   // Convert to lowercase for case-insensitive search
-  const searchTerms = query.toLowerCase().split('');
+  const queryLower = query.toLowerCase();
   
-  // Find matching rank combinations using the index
+  // Create a frequency map of the search chars
+  const searchFrequency = {};
+  for (const char of queryLower) {
+    searchFrequency[char] = (searchFrequency[char] || 0) + 1;
+  }
+  
+  // Find matching rank combinations
   let matches = [];
   
-  if (searchTerms.length > 0) {
-    // Start with all hands containing the first search term
-    matches = appState.index[searchTerms[0]] || [];
+  // If we have at least one search term
+  if (queryLower.length > 0) {
+    // Start with all hands containing the first unique search term
+    const firstChar = Object.keys(searchFrequency)[0];
+    const initialCandidates = appState.index[firstChar] || [];
     
-    // Filter for hands containing all other search terms
-    for (let i = 1; i < searchTerms.length; i++) {
-      const term = searchTerms[i];
-      matches = matches.filter(hand => 
-        hand.toLowerCase().includes(term)
-      );
-    }
+    // Check each candidate to ensure it contains the right frequency of each character
+    matches = initialCandidates.filter(hand => {
+      const handLower = hand.toLowerCase();
+      // Check if all characters in search are in the hand with correct frequency
+      for (const [char, count] of Object.entries(searchFrequency)) {
+        // Count occurrences of this character in the hand
+        const charCountInHand = (handLower.match(new RegExp(char, 'g')) || []).length;
+        
+        // If we don't have enough of this character, or require exact matches when all 4 ranks are specified
+        if (charCountInHand < count || (queryLower.length === 4 && charCountInHand > count)) {
+          return false;
+        }
+      }
+      return true;
+    });
   }
   
   // Display the results
