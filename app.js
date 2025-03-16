@@ -239,27 +239,158 @@ function getColorsForPattern(pattern, cards) {
     spade: '#FFD866'    // Yellow
   };
   
-  // Create a map to track which ranks have been assigned which suits
-  const rankSuitMap = new Map();
+  // Detect impossible cases early
+  const rankCounts = {};
+  for (const rank of cards) {
+    rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+  }
   
-  // Function to find a suit that hasn't been used for this rank yet
-  function getUniqueSuitForRank(rank, usedSuits) {
-    const availableSuits = Object.keys(colors).filter(suit => !usedSuits.includes(suit));
-    
-    // If this rank already has assigned suits, don't use those
-    if (rankSuitMap.has(rank)) {
-      const rankSuits = rankSuitMap.get(rank);
-      const uniqueSuits = availableSuits.filter(suit => !rankSuits.includes(suit));
-      
-      // If we have unique suits available, use one
-      if (uniqueSuits.length > 0) {
-        return uniqueSuits[0];
+  // Check for impossible cases
+  if (pattern === 'mono') {
+    // Mono pattern with any duplicate ranks cannot be resolved
+    for (const [rank, count] of Object.entries(rankCounts)) {
+      if (count > 1) {
+        throw new Error(`Cannot resolve mono pattern with duplicate rank: ${rank}`);
       }
     }
-    
-    // Otherwise use any available suit
-    return availableSuits.length > 0 ? availableSuits[0] : Object.keys(colors)[0];
   }
+  
+  // Check for triple of the same rank in trip patterns
+  if ((pattern === 'trip_high' || pattern === 'trip_low')) {
+    for (const [rank, count] of Object.entries(rankCounts)) {
+      if (count >= 3) {
+        throw new Error(`Cannot resolve ${pattern} pattern with triple of rank: ${rank}`);
+      }
+    }
+  }
+  
+  // Special case for double pattern with AABB structure (paired double suited)
+  if (pattern === 'double' && 
+      cards.length === 4 && 
+      cards[0] === cards[1] && 
+      cards[2] === cards[3] && 
+      cards[0] !== cards[2]) {
+    // AABB gets alternating colors: green, red, green, red
+    return [colors.club, colors.heart, colors.club, colors.heart];
+  }
+  
+  // Define the ideal suits for each pattern
+  let idealSuits;
+  switch (pattern) {
+    case 'mono':
+      idealSuits = ['club', 'club', 'club', 'club'];
+      break;
+    case 'double':
+      idealSuits = ['club', 'club', 'heart', 'heart'];
+      break;
+    case 'trip_high':
+      idealSuits = ['club', 'club', 'club', 'heart'];
+      break;
+    case 'trip_low':
+      idealSuits = ['heart', 'club', 'club', 'club'];
+      break;
+    case 'single_high':
+      idealSuits = ['club', 'club', 'heart', 'diamond'];
+      break;
+    case 'single_low':
+      idealSuits = ['heart', 'club', 'club', 'diamond'];
+      break;
+    case 'rainbow':
+      idealSuits = ['club', 'heart', 'diamond', 'spade'];
+      break;
+    default:
+      idealSuits = ['club', 'heart', 'diamond', 'spade'];
+  }
+  
+  // Copy the ideal suits - we'll modify this
+  const assignedSuits = [...idealSuits];
+  
+  // Find conflicts (same rank getting same suit)
+  const rankSuitMap = new Map(); // Maps rank to the suits already assigned
+  const conflicts = [];
+  
+  for (let i = 0; i < cards.length; i++) {
+    const rank = cards[i];
+    const suit = assignedSuits[i];
+    
+    if (!rankSuitMap.has(rank)) {
+      rankSuitMap.set(rank, []);
+    }
+    
+    // Check if this rank already has this suit assigned
+    if (rankSuitMap.get(rank).includes(suit)) {
+      conflicts.push(i); // Store the position of the conflict
+    } else {
+      rankSuitMap.get(rank).push(suit);
+    }
+  }
+  
+  // Resolve conflicts by swapping
+  for (const conflictPos of conflicts) {
+    const rank = cards[conflictPos];
+    const currentSuit = assignedSuits[conflictPos];
+    const usedSuits = rankSuitMap.get(rank);
+    
+    // Try to swap with a later position
+    let swapped = false;
+    
+    // First, try to swap with a position that has the same suit type
+    // This helps preserve the pattern structure (e.g., keeping 3 clubs in trip patterns)
+    for (let i = conflictPos + 1; i < cards.length; i++) {
+      const laterRank = cards[i];
+      const laterSuit = assignedSuits[i];
+      
+      // Skip if same rank
+      if (laterRank === rank) continue;
+      
+      // Skip if this would create a new conflict
+      if (rankSuitMap.get(laterRank)?.includes(currentSuit)) continue;
+      
+      // Skip if the conflicting rank already has the later suit
+      if (usedSuits.includes(laterSuit)) continue;
+      
+      // Perform the swap
+      [assignedSuits[conflictPos], assignedSuits[i]] = [assignedSuits[i], assignedSuits[conflictPos]];
+      
+      // Update rank-suit mappings
+      rankSuitMap.get(rank).push(assignedSuits[conflictPos]);
+      if (!rankSuitMap.has(laterRank)) {
+        rankSuitMap.set(laterRank, []);
+      }
+      rankSuitMap.get(laterRank).push(currentSuit);
+      
+      swapped = true;
+      break;
+    }
+    
+    // If no swap was possible, this is an impossible case
+    if (!swapped) {
+      throw new Error(`Cannot resolve suit conflicts for ${pattern} pattern with current rank distribution`);
+    }
+  }
+  
+  // Convert suits to colors
+  const result = assignedSuits.map(suit => colors[suit]);
+  
+  // Final verification
+  const finalMap = new Map();
+  for (let i = 0; i < cards.length; i++) {
+    const rank = cards[i];
+    const color = result[i];
+    
+    if (!finalMap.has(rank)) {
+      finalMap.set(rank, new Set());
+    }
+    
+    if (finalMap.get(rank).has(color)) {
+      throw new Error(`Verification failed: Duplicate color ${color} for rank ${rank}`);
+    }
+    
+    finalMap.get(rank).add(color);
+  }
+  
+  return result;
+}
   
   // Initialize the result array and tracking of used suits
   const result = new Array(cards.length);
