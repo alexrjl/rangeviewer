@@ -399,7 +399,7 @@ function renderActions(actions) {
   }
   
   // Process SB open action (first action)
-  const sbOpenPct = actions["100BB SB open"] || 0;
+  const sbOpenPct = actions["SB open"] || 0;
   let sbOpen = "Fold";
   if (sbOpenPct > 0) {
     sbOpen = "Raise";
@@ -411,8 +411,8 @@ function renderActions(actions) {
   
   // Process SB response to 3bet (second action)
   let sbResponse = "Fold";
-  const sb4betPct = actions["100BB SB 4bet"] || 0;
-  const sbCallPct = actions["100BB SB Cv3bet"] || 0;
+  const sb4betPct = actions["SB 4bet"] || 0;
+  const sbCallPct = actions["SB Cv3bet"] || 0;
   const sbFoldVs3betPct = 100 - sb4betPct - sbCallPct;
   
   // Add actions that exceed 5% threshold
@@ -444,8 +444,8 @@ function renderActions(actions) {
   
   // Process BB first action vs open
   let bbAction = "Fold";
-  const bb3betPct = actions["100BB BB 3bet"] || 0;
-  const bbCallPct = actions["100BB BB call"] || 0;
+  const bb3betPct = actions["BB 3bet"] || 0;
+  const bbCallPct = actions["BB call"] || 0;
   const bbFoldPct = 100 - bb3betPct - bbCallPct;
   
   // For BB first action, show the majority action with percentage if mixed
@@ -471,9 +471,9 @@ function renderActions(actions) {
   
   // Process BB response to 4bet (second action)
   let bbResponse = "Fold";
-  const bb5betPct = actions["100BB BB 5bet"] || 0;
-  const bbCv4betPct = actions["100BB BB Cv4bet"] || 0;
-  const bbFv4betPct = actions["100BB BB Fv4bet"] || 0;
+  const bb5betPct = actions["BB 5bet"] || 0;
+  const bbCv4betPct = actions["BB Cv4bet"] || 0;
+  const bbFv4betPct = actions["BB Fv4bet"] || 0;
   
   // Add actions that exceed 5% threshold
   const bbResponseActions = [];
