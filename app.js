@@ -403,8 +403,8 @@ function renderActions(actions) {
   let sbOpen = "Fold";
   if (sbOpenPct > 0) {
     sbOpen = "Raise";
-    // Show percentage only if it's not 100%
-    if (sbOpenPct < 100 && sbOpenPct > 0) {
+    // Show percentage only if it's less than 99%
+    if (sbOpenPct < 99 && sbOpenPct > 0) {
       sbOpen = `Raise[${Math.round(sbOpenPct)}%]`;
     }
   }
@@ -417,9 +417,21 @@ function renderActions(actions) {
   
   // Add actions that exceed 5% threshold
   const sbResponseActions = [];
-  if (sb4betPct >= 5) sbResponseActions.push(`4bet[${Math.round(sb4betPct)}%]`);
-  if (sbCallPct >= 5) sbResponseActions.push(`call[${Math.round(sbCallPct)}%]`);
-  if (sbFoldVs3betPct >= 5) sbResponseActions.push(`fold[${Math.round(sbFoldVs3betPct)}%]`);
+  if (sb4betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (sb4betPct >= 99) sbResponseActions.push("4bet");
+    else sbResponseActions.push(`4bet[${Math.round(sb4betPct)}%]`);
+  }
+  if (sbCallPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (sbCallPct >= 99) sbResponseActions.push("call");
+    else sbResponseActions.push(`call[${Math.round(sbCallPct)}%]`);
+  }
+  if (sbFoldVs3betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (sbFoldVs3betPct >= 99) sbResponseActions.push("fold");
+    else sbResponseActions.push(`fold[${Math.round(sbFoldVs3betPct)}%]`);
+  }
   
   // If we have mixed second actions, join them with slashes
   if (sbResponseActions.length > 1) {
@@ -428,13 +440,6 @@ function renderActions(actions) {
   // If only one action exceeds 5%, use that
   else if (sbResponseActions.length === 1) {
     sbResponse = sbResponseActions[0];
-  }
-  // If no action exceeds 5% (unlikely), show the largest one
-  else {
-    const maxPct = Math.max(sb4betPct, sbCallPct, sbFoldVs3betPct);
-    if (maxPct === sb4betPct) sbResponse = `4bet[${Math.round(sb4betPct)}%]`;
-    else if (maxPct === sbCallPct) sbResponse = `call[${Math.round(sbCallPct)}%]`;
-    else sbResponse = `fold[${Math.round(sbFoldVs3betPct)}%]`;
   }
   
   // Process BB first action vs open
@@ -445,11 +450,11 @@ function renderActions(actions) {
   
   // For BB first action, show the majority action with percentage if mixed
   if (bb3betPct > bbCallPct && bb3betPct > bbFoldPct) {
-    bbAction = bb3betPct < 100 ? `3bet[${Math.round(bb3betPct)}%]` : "3bet";
+    bbAction = bb3betPct < 99 ? `3bet[${Math.round(bb3betPct)}%]` : "3bet";
   } else if (bbCallPct > bb3betPct && bbCallPct > bbFoldPct) {
-    bbAction = bbCallPct < 100 ? `call[${Math.round(bbCallPct)}%]` : "call";
+    bbAction = bbCallPct < 99 ? `call[${Math.round(bbCallPct)}%]` : "call";
   } else if (bbFoldPct > bb3betPct && bbFoldPct > bbCallPct) {
-    bbAction = bbFoldPct < 100 ? `fold[${Math.round(bbFoldPct)}%]` : "fold";
+    bbAction = bbFoldPct < 99 ? `fold[${Math.round(bbFoldPct)}%]` : "fold";
   } 
   // Handle exact ties by showing both
   else if (bb3betPct === bbCallPct && bb3betPct > bbFoldPct) {
@@ -472,9 +477,21 @@ function renderActions(actions) {
   
   // Add actions that exceed 5% threshold
   const bbResponseActions = [];
-  if (bb5betPct >= 5) bbResponseActions.push(`5bet[${Math.round(bb5betPct)}%]`);
-  if (bbCv4betPct >= 5) bbResponseActions.push(`call[${Math.round(bbCv4betPct)}%]`);
-  if (bbFv4betPct >= 5) bbResponseActions.push(`fold[${Math.round(bbFv4betPct)}%]`);
+  if (bb5betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (bb5betPct >= 99) bbResponseActions.push("5bet");
+    else bbResponseActions.push(`5bet[${Math.round(bb5betPct)}%]`);
+  }
+  if (bbCv4betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (bbCv4betPct >= 99) bbResponseActions.push("call");
+    else bbResponseActions.push(`call[${Math.round(bbCv4betPct)}%]`);
+  }
+  if (bbFv4betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (bbFv4betPct >= 99) bbResponseActions.push("fold");
+    else bbResponseActions.push(`fold[${Math.round(bbFv4betPct)}%]`);
+  }
   
   // If we have mixed second actions, join them with slashes
   if (bbResponseActions.length > 1) {
@@ -483,13 +500,6 @@ function renderActions(actions) {
   // If only one action exceeds 5%, use that
   else if (bbResponseActions.length === 1) {
     bbResponse = bbResponseActions[0];
-  }
-  // If no action exceeds 5% (unlikely), show the largest one
-  else {
-    const maxPct = Math.max(bb5betPct, bbCv4betPct, bbFv4betPct);
-    if (maxPct === bb5betPct) bbResponse = `5bet[${Math.round(bb5betPct)}%]`;
-    else if (maxPct === bbCv4betPct) bbResponse = `call[${Math.round(bbCv4betPct)}%]`;
-    else bbResponse = `fold[${Math.round(bbFv4betPct)}%]`;
   }
   
   // Return the formatted actions with pipe separator
@@ -500,7 +510,6 @@ function renderActions(actions) {
     </div>
   `;
 }
-
 // Debounce function to limit how often a function is called
 function debounce(func, wait) {
   let timeout;
