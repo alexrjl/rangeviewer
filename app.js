@@ -160,15 +160,17 @@ function displayResults(matches) {
       return;
     }
     
-    // Define the order of patterns
+    // Define the order of patterns using the numeric IDs from the JSON data
+    // Based on the provided mapping: pattern_map = { 'mono': 1, 'trip_high': 2, 'trip_low': 3, 'double': 4, 'single_high': 5, 'single_low': 6, 'rainbow': 7 }
+    // But we want to maintain the original display order preference
     const patternOrder = {
-      'double': 1,
-      'single_high': 2,
-      'single_low': 3,
-      'trip_high': 4,
-      'trip_low': 5,
-      'mono': 6,
-      'rainbow': 7
+      '4': 1, // double (first)
+      '5': 2, // single_high (second)
+      '6': 3, // single_low (third)
+      '2': 4, // trip_high (fourth) 
+      '3': 5, // trip_low (fifth)
+      '1': 6, // mono (sixth)
+      '7': 7  // rainbow (last)
     };
     
     // Convert to array and sort by custom order
@@ -199,11 +201,23 @@ function displayResults(matches) {
 
 // Render hand visualization
 function renderHandVisualization(rankCombo, patternId) {
-  const pattern = appState.patterns[patternId];
+  // Convert the numeric patternId to the corresponding pattern type
+  // Using the correct pattern mapping from: pattern_map = { 'mono': 1, 'trip_high': 2, 'trip_low': 3, 'double': 4, 'single_high': 5, 'single_low': 6, 'rainbow': 7 }
+  const patternTypes = {
+    '1': 'mono',
+    '2': 'trip_high',
+    '3': 'trip_low',
+    '4': 'double',
+    '5': 'single_high',
+    '6': 'single_low',
+    '7': 'rainbow'
+  };
+  
+  const patternType = patternTypes[patternId] || 'rainbow'; // Default to rainbow if unknown
   const cards = rankCombo.split('');
   
   // Define card colors based on the suitedness pattern
-  const cardColors = getColorsForPattern(pattern, cards);
+  const cardColors = getColorsForPattern(patternType, cards);
   
   // Create the card elements with the small-card class
   const cardElements = cards.map((rank, index) => 
@@ -215,35 +229,268 @@ function renderHandVisualization(rankCombo, patternId) {
   return `<div class="hand-visualization">${cardElements}</div>`;
 }
 
-// Get colors for pattern
+// Get colors for pattern - FIXED to handle paired ranks correctly
 function getColorsForPattern(pattern, cards) {
   // Color mapping (with better contrast for dark mode)
   const colors = {
-    club: '#6FBD66',    // Brighter Green
-    heart: '#FF6B70',   // Brighter Red
-    diamond: '#5B9FF7', // Brighter Blue
-    spade: '#FFD866'    // Brighter Yellow
+    club: '#6FBD66',    // Green
+    heart: '#FF6B70',   // Red
+    diamond: '#5B9FF7', // Blue
+    spade: '#FFD866'    // Yellow
   };
   
-  // Assign colors based on pattern
+  // Create a map to track which ranks have been assigned which suits
+  const rankSuitMap = new Map();
+  
+  // Function to find a suit that hasn't been used for this rank yet
+  function getUniqueSuitForRank(rank, usedSuits) {
+    const availableSuits = Object.keys(colors).filter(suit => !usedSuits.includes(suit));
+    
+    // If this rank already has assigned suits, don't use those
+    if (rankSuitMap.has(rank)) {
+      const rankSuits = rankSuitMap.get(rank);
+      const uniqueSuits = availableSuits.filter(suit => !rankSuits.includes(suit));
+      
+      // If we have unique suits available, use one
+      if (uniqueSuits.length > 0) {
+        return uniqueSuits[0];
+      }
+    }
+    
+    // Otherwise use any available suit
+    return availableSuits.length > 0 ? availableSuits[0] : Object.keys(colors)[0];
+  }
+  
+  // Initialize the result array and tracking of used suits
+  const result = new Array(cards.length);
+  const usedSuits = [];
+  
+  // Assign colors based on pattern, ensuring same ranks get different suits
   switch (pattern) {
     case 'mono':
-      return [colors.club, colors.club, colors.club, colors.club];
-    case 'trip_high':
-      return [colors.club, colors.club, colors.club, colors.heart];
-    case 'trip_low':
-      return [colors.heart, colors.club, colors.club, colors.club];
+      // For mono pattern, use different suits for cards with the same rank
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        // Since mono would normally be all the same suit, we'll use 4 different suits for duplicates
+        const suitOptions = ['club', 'heart', 'diamond', 'spade'];
+        const suit = suitOptions[i % suitOptions.length];
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(suit);
+        
+        result[i] = colors[suit];
+        usedSuits.push(suit);
+      }
+      break;
+      
     case 'double':
-      return [colors.club, colors.club, colors.heart, colors.heart];
+      // For double pattern, assign first two cards one suit, last two another suit
+      // But ensure cards with same rank get different suits
+      const firstSuit = 'club';
+      const secondSuit = 'heart';
+      
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        let selectedSuit;
+        
+        if (i < 2) {
+          // First two cards should have the same suit (unless same rank)
+          if (cards[0] === cards[1] && i === 1) {
+            // If first two cards are the same rank, use a different suit
+            selectedSuit = 'diamond';
+          } else {
+            selectedSuit = firstSuit;
+          }
+        } else {
+          // Last two cards should have the same suit (unless same rank)
+          if (cards[2] === cards[3] && i === 3) {
+            // If last two cards are the same rank, use a different suit
+            selectedSuit = 'spade';
+          } else {
+            selectedSuit = secondSuit;
+          }
+        }
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(selectedSuit);
+        
+        result[i] = colors[selectedSuit];
+        usedSuits.push(selectedSuit);
+      }
+      break;
+      
+    case 'trip_high':
+      // First 3 same suit, last card different
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        let selectedSuit;
+        
+        if (i < 3) {
+          // Check if this rank already appeared
+          const sameRankIndices = cards.slice(0, i).map((r, idx) => r === rank ? idx : -1).filter(idx => idx !== -1);
+          
+          if (sameRankIndices.length > 0) {
+            // This rank already appeared, use a different suit
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          } else {
+            selectedSuit = 'club';
+          }
+        } else {
+          // Last card
+          selectedSuit = 'heart';
+          // If this rank appeared earlier, find a unique suit
+          if (cards.slice(0, 3).includes(rank)) {
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          }
+        }
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(selectedSuit);
+        
+        result[i] = colors[selectedSuit];
+        usedSuits.push(selectedSuit);
+      }
+      break;
+      
+    case 'trip_low':
+      // First card different, last 3 same suit
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        let selectedSuit;
+        
+        if (i === 0) {
+          selectedSuit = 'heart';
+        } else {
+          // Check if this rank already appeared
+          const sameRankIndices = cards.slice(0, i).map((r, idx) => r === rank ? idx : -1).filter(idx => idx !== -1);
+          
+          if (sameRankIndices.length > 0) {
+            // This rank already appeared, use a different suit
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          } else {
+            selectedSuit = 'club';
+          }
+        }
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(selectedSuit);
+        
+        result[i] = colors[selectedSuit];
+        usedSuits.push(selectedSuit);
+      }
+      break;
+      
     case 'single_high':
-      return [colors.club, colors.club, colors.heart, colors.diamond];
+      // First 2 same suit, last 2 different suits
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        let selectedSuit;
+        
+        if (i < 2) {
+          // Check if this rank already appeared
+          if (i === 1 && cards[0] === cards[1]) {
+            // Same rank, use a different suit
+            selectedSuit = 'diamond';
+          } else {
+            selectedSuit = 'club';
+          }
+        } else if (i === 2) {
+          selectedSuit = 'heart';
+          // If this rank appeared earlier, find a unique suit
+          if (cards.slice(0, 2).includes(rank)) {
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          }
+        } else { // i === 3
+          selectedSuit = 'diamond';
+          // If this rank appeared earlier, find a unique suit
+          if (cards.slice(0, 3).includes(rank)) {
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          }
+        }
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(selectedSuit);
+        
+        result[i] = colors[selectedSuit];
+        usedSuits.push(selectedSuit);
+      }
+      break;
+      
     case 'single_low':
-      return [colors.heart, colors.club, colors.club, colors.diamond];
+      // First card one suit, middle 2 same suit, last card different suit
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        let selectedSuit;
+        
+        if (i === 0) {
+          selectedSuit = 'heart';
+        } else if (i < 3) {
+          // Check if this rank already appeared
+          if ((i === 2 && cards[1] === cards[2]) || (i === 1 && cards[0] === cards[1])) {
+            // Same rank, use a different suit
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          } else {
+            selectedSuit = 'club';
+          }
+        } else { // i === 3
+          selectedSuit = 'diamond';
+          // If this rank appeared earlier, find a unique suit
+          if (cards.slice(0, 3).includes(rank)) {
+            selectedSuit = getUniqueSuitForRank(rank, usedSuits);
+          }
+        }
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(selectedSuit);
+        
+        result[i] = colors[selectedSuit];
+        usedSuits.push(selectedSuit);
+      }
+      break;
+      
     case 'rainbow':
-      return [colors.club, colors.heart, colors.diamond, colors.spade];
+      // All different suits
+      const rainbowSuits = ['club', 'heart', 'diamond', 'spade'];
+      for (let i = 0; i < cards.length; i++) {
+        const rank = cards[i];
+        
+        // Add to the rank-suit map
+        if (!rankSuitMap.has(rank)) {
+          rankSuitMap.set(rank, []);
+        }
+        rankSuitMap.get(rank).push(rainbowSuits[i]);
+        
+        result[i] = colors[rainbowSuits[i]];
+      }
+      break;
+      
     default:
-      return [colors.club, colors.heart, colors.diamond, colors.spade];
+      // Default to rainbow
+      const defaultSuits = ['club', 'heart', 'diamond', 'spade'];
+      for (let i = 0; i < cards.length; i++) {
+        result[i] = colors[defaultSuits[i]];
+      }
   }
+  
+  return result;
 }
 
 // Render actions
