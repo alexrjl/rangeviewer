@@ -391,33 +391,112 @@ function getColorsForPattern(pattern, cards) {
   
   return result;
 }
-// Render actions
+// Render actions with mixed strategy support
 function renderActions(actions) {
   // Safely handle potentially missing actions
   if (!actions) {
     return `<div class="actions"><div class="no-actions">No action data available</div></div>`;
   }
   
-  // Process SB actions
-  const sbOpen = actions["100BB SB open"] > 0 ? "Raise" : "Fold";
+  // Process SB open action (first action)
+  const sbOpenPct = actions["100BB SB open"] || 0;
+  let sbOpen = "Fold";
+  if (sbOpenPct > 0) {
+    sbOpen = "Raise";
+    // Show percentage only if it's not 100%
+    if (sbOpenPct < 100 && sbOpenPct > 0) {
+      sbOpen = `Raise[${Math.round(sbOpenPct)}%]`;
+    }
+  }
+  
+  // Process SB response to 3bet (second action)
   let sbResponse = "Fold";
-  if (actions["100BB SB 4bet"] > 0) sbResponse = "4bet";
-  else if (actions["100BB SB Cv3bet"] > 0) sbResponse = "Call";
+  const sb4betPct = actions["100BB SB 4bet"] || 0;
+  const sbCallPct = actions["100BB SB Cv3bet"] || 0;
+  const sbFoldVs3betPct = 100 - sb4betPct - sbCallPct;
   
-  // Process BB actions
+  // Add actions that exceed 5% threshold
+  const sbResponseActions = [];
+  if (sb4betPct >= 5) sbResponseActions.push(`4bet[${Math.round(sb4betPct)}%]`);
+  if (sbCallPct >= 5) sbResponseActions.push(`call[${Math.round(sbCallPct)}%]`);
+  if (sbFoldVs3betPct >= 5) sbResponseActions.push(`fold[${Math.round(sbFoldVs3betPct)}%]`);
+  
+  // If we have mixed second actions, join them with slashes
+  if (sbResponseActions.length > 1) {
+    sbResponse = sbResponseActions.join('/');
+  } 
+  // If only one action exceeds 5%, use that
+  else if (sbResponseActions.length === 1) {
+    sbResponse = sbResponseActions[0];
+  }
+  // If no action exceeds 5% (unlikely), show the largest one
+  else {
+    const maxPct = Math.max(sb4betPct, sbCallPct, sbFoldVs3betPct);
+    if (maxPct === sb4betPct) sbResponse = `4bet[${Math.round(sb4betPct)}%]`;
+    else if (maxPct === sbCallPct) sbResponse = `call[${Math.round(sbCallPct)}%]`;
+    else sbResponse = `fold[${Math.round(sbFoldVs3betPct)}%]`;
+  }
+  
+  // Process BB first action vs open
   let bbAction = "Fold";
-  if (actions["100BB BB 3bet"] > 0) bbAction = "3bet";
-  else if (actions["100BB BB call"] > 0) bbAction = "Call";
+  const bb3betPct = actions["100BB BB 3bet"] || 0;
+  const bbCallPct = actions["100BB BB call"] || 0;
+  const bbFoldPct = 100 - bb3betPct - bbCallPct;
   
+  // For BB first action, show the majority action with percentage if mixed
+  if (bb3betPct > bbCallPct && bb3betPct > bbFoldPct) {
+    bbAction = bb3betPct < 100 ? `3bet[${Math.round(bb3betPct)}%]` : "3bet";
+  } else if (bbCallPct > bb3betPct && bbCallPct > bbFoldPct) {
+    bbAction = bbCallPct < 100 ? `call[${Math.round(bbCallPct)}%]` : "call";
+  } else if (bbFoldPct > bb3betPct && bbFoldPct > bbCallPct) {
+    bbAction = bbFoldPct < 100 ? `fold[${Math.round(bbFoldPct)}%]` : "fold";
+  } 
+  // Handle exact ties by showing both
+  else if (bb3betPct === bbCallPct && bb3betPct > bbFoldPct) {
+    bbAction = `3bet[${Math.round(bb3betPct)}%]/call[${Math.round(bbCallPct)}%]`;
+  } else if (bb3betPct === bbFoldPct && bb3betPct > bbCallPct) {
+    bbAction = `3bet[${Math.round(bb3betPct)}%]/fold[${Math.round(bbFoldPct)}%]`;
+  } else if (bbCallPct === bbFoldPct && bbCallPct > bb3betPct) {
+    bbAction = `call[${Math.round(bbCallPct)}%]/fold[${Math.round(bbFoldPct)}%]`;
+  }
+  // Perfect three-way tie (very unlikely)
+  else if (bb3betPct === bbCallPct && bb3betPct === bbFoldPct) {
+    bbAction = `3bet[${Math.round(bb3betPct)}%]/call[${Math.round(bbCallPct)}%]/fold[${Math.round(bbFoldPct)}%]`;
+  }
+  
+  // Process BB response to 4bet (second action)
   let bbResponse = "Fold";
-  if (actions["100BB BB 5bet"] > 0) bbResponse = "5bet";
-  else if (actions["100BB BB Cv4bet"] > 0) bbResponse = "Call";
+  const bb5betPct = actions["100BB BB 5bet"] || 0;
+  const bbCv4betPct = actions["100BB BB Cv4bet"] || 0;
+  const bbFv4betPct = actions["100BB BB Fv4bet"] || 0;
   
-  // Use the actions-horizontal class for side-by-side display
+  // Add actions that exceed 5% threshold
+  const bbResponseActions = [];
+  if (bb5betPct >= 5) bbResponseActions.push(`5bet[${Math.round(bb5betPct)}%]`);
+  if (bbCv4betPct >= 5) bbResponseActions.push(`call[${Math.round(bbCv4betPct)}%]`);
+  if (bbFv4betPct >= 5) bbResponseActions.push(`fold[${Math.round(bbFv4betPct)}%]`);
+  
+  // If we have mixed second actions, join them with slashes
+  if (bbResponseActions.length > 1) {
+    bbResponse = bbResponseActions.join('/');
+  } 
+  // If only one action exceeds 5%, use that
+  else if (bbResponseActions.length === 1) {
+    bbResponse = bbResponseActions[0];
+  }
+  // If no action exceeds 5% (unlikely), show the largest one
+  else {
+    const maxPct = Math.max(bb5betPct, bbCv4betPct, bbFv4betPct);
+    if (maxPct === bb5betPct) bbResponse = `5bet[${Math.round(bb5betPct)}%]`;
+    else if (maxPct === bbCv4betPct) bbResponse = `call[${Math.round(bbCv4betPct)}%]`;
+    else bbResponse = `fold[${Math.round(bbFv4betPct)}%]`;
+  }
+  
+  // Return the formatted actions with pipe separator
   return `
     <div class="actions actions-horizontal">
-      <div class="sb-action">SB: ${sbOpen}/${sbResponse}</div>
-      <div class="bb-action">BB: ${bbAction}/${bbResponse}</div>
+      <div class="sb-action">SB: ${sbOpen} | ${sbResponse}</div>
+      <div class="bb-action">BB: ${bbAction} | ${bbResponse}</div>
     </div>
   `;
 }
