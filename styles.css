@@ -286,3 +286,33 @@ body.dark-mode .actions-horizontal .bb-action {
 body.dark-mode .theme-toggle {
   background-color: #89b4fa;
 }
+/* Mixed strategy styling */
+.sb-action, .bb-action {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  font-weight: 500;
+  margin-right: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+body.dark-mode .sb-action, 
+body.dark-mode .bb-action {
+  background-color: #45475a;
+  color: #cdd6f4;
+}
+
+/* Add a bit more spacing in the action blocks */
+.actions.actions-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Make percentage text slightly smaller */
+.sb-action span, .bb-action span {
+  font-size: 0.9em;
+}
