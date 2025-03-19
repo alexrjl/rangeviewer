@@ -202,7 +202,6 @@ function displayResults(matches) {
 // Render hand visualization
 function renderHandVisualization(rankCombo, patternId) {
   // Convert the numeric patternId to the corresponding pattern type
-  // Using the correct pattern mapping from: pattern_map = { 'mono': 1, 'trip_high': 2, 'trip_low': 3, 'double': 4, 'single_high': 5, 'single_low': 6, 'rainbow': 7 }
   const patternTypes = {
     '1': 'mono',
     '2': 'trip_high',
@@ -217,19 +216,42 @@ function renderHandVisualization(rankCombo, patternId) {
   const cards = rankCombo.split('');
   
   // Define card colors based on the suitedness pattern
-  const cardColors = getColorsForPattern(patternType, cards);
-  
-  // Create the card elements with the small-card class
-  const cardElements = cards.map((rank, index) => 
-    `<div class="card small-card" style="background-color: ${cardColors[index]}">
-       ${rank.toUpperCase()}
-     </div>`
-  ).join('');
-  
-  return `<div class="hand-visualization">${cardElements}</div>`;
+  try {
+    const cardColors = getColorsForPattern(patternType, cards);
+    
+    // Create the card elements with the small-card class
+    const cardElements = cards.map((rank, index) => 
+      `<div class="card small-card" style="background-color: ${cardColors[index]}">
+         ${rank.toUpperCase()}
+       </div>`
+    ).join('');
+    
+    return `<div class="hand-visualization">${cardElements}</div>`;
+  } catch (error) {
+    console.error(`Error rendering ${rankCombo} with pattern ${patternType}:`, error.message);
+    
+    // ERROR INDICATOR: Bright pink cards with error message
+    const errorColor = '#FF00FF'; // Bright pink
+    
+    // Create the card elements with error color
+    const cardElements = cards.map((rank) => 
+      `<div class="card small-card" style="background-color: ${errorColor}; border: 2px dashed red;">
+         ${rank.toUpperCase()}
+       </div>`
+    ).join('');
+    
+    // Add the error message below the cards
+    return `
+      <div class="hand-visualization-error">
+        <div class="hand-visualization">${cardElements}</div>
+        <div class="pattern-error-message" style="color: red; font-size: 12px; margin-top: 5px;">
+          Error with pattern: ${patternType}
+        </div>
+      </div>
+    `;
+  }
 }
-
-// Get colors for pattern
+// Get colors for pattern - with specific error types
 function getColorsForPattern(pattern, cards) {
   // Color mapping (with better contrast for dark mode)
   const colors = {
@@ -239,157 +261,118 @@ function getColorsForPattern(pattern, cards) {
     spade: '#FFD866'    // Yellow
   };
   
-  // Detect impossible cases early
+  // Create a copy of the cards for analysis
+  const cardsCopy = [...cards];
+  
+  // Count frequencies of each rank
   const rankCounts = {};
-  for (const rank of cards) {
+  for (const rank of cardsCopy) {
     rankCounts[rank] = (rankCounts[rank] || 0) + 1;
   }
   
-  // Check for impossible cases
-  if (pattern === 'mono') {
-    // Mono pattern with any duplicate ranks cannot be resolved
-    for (const [rank, count] of Object.entries(rankCounts)) {
-      if (count > 1) {
-        throw new Error(`Cannot resolve mono pattern with duplicate rank: ${rank}`);
-      }
-    }
+  // Debug information about hand structure
+  const hasTriple = Object.values(rankCounts).some(count => count >= 3);
+  const hasPair = Object.values(rankCounts).some(count => count === 2);
+  const pairs = Object.entries(rankCounts).filter(([rank, count]) => count >= 2).map(([rank]) => rank);
+  const singles = Object.entries(rankCounts).filter(([rank, count]) => count === 1).map(([rank]) => rank);
+  
+  // Validate pattern against hand structure
+  if (pattern === 'mono' && pairs.length > 0) {
+    throw new Error(`Cannot render mono pattern (${pattern}) with pairs: ${pairs.join(',')}`);
   }
   
-  // Check for triple of the same rank in trip patterns
-  if ((pattern === 'trip_high' || pattern === 'trip_low')) {
-    for (const [rank, count] of Object.entries(rankCounts)) {
-      if (count >= 3) {
-        throw new Error(`Cannot resolve ${pattern} pattern with triple of rank: ${rank}`);
-      }
-    }
+  if ((pattern === 'trip_high' || pattern === 'trip_low') && hasTriple) {
+    throw new Error(`Cannot render trip pattern (${pattern}) with triple: ${pairs.join(',')}`);
   }
   
-  // Special case for double pattern with AABB structure (paired double suited)
-  if (pattern === 'double' && 
-      cards.length === 4 && 
-      cards[0] === cards[1] && 
-      cards[2] === cards[3] && 
-      cards[0] !== cards[2]) {
-    // AABB gets alternating colors: green, red, green, red
-    return [colors.club, colors.heart, colors.club, colors.heart];
+  // Check for impossible cases based on pattern
+  if (pattern === 'double' && !hasPair) {
+    throw new Error(`Double suited pattern requires at least one pair, found: ${JSON.stringify(rankCounts)}`);
   }
   
-  // Define the ideal suits for each pattern
+  if ((pattern === 'trip_high' || pattern === 'trip_low') && pairs.length === 0) {
+    throw new Error(`Trip pattern (${pattern}) requires at least one pair, found: ${JSON.stringify(rankCounts)}`);
+  }
+  
+  // Define ideal suits for each pattern
   let idealSuits;
   switch (pattern) {
     case 'mono':
-      idealSuits = ['club', 'club', 'club', 'club'];
-      break;
+      // All the same suit
+      return cardsCopy.map(() => colors.club);
+      
     case 'double':
-      idealSuits = ['club', 'club', 'heart', 'heart'];
-      break;
-    case 'trip_high':
-      idealSuits = ['club', 'club', 'club', 'heart'];
-      break;
-    case 'trip_low':
-      idealSuits = ['heart', 'club', 'club', 'club'];
-      break;
-    case 'single_high':
-      idealSuits = ['club', 'club', 'heart', 'diamond'];
-      break;
-    case 'single_low':
-      idealSuits = ['heart', 'club', 'club', 'diamond'];
-      break;
-    case 'rainbow':
-      idealSuits = ['club', 'heart', 'diamond', 'spade'];
-      break;
-    default:
-      idealSuits = ['club', 'heart', 'diamond', 'spade'];
-  }
-  
-  // Copy the ideal suits - we'll modify this
-  const assignedSuits = [...idealSuits];
-  
-  // Find conflicts (same rank getting same suit)
-  const rankSuitMap = new Map(); // Maps rank to the suits already assigned
-  const conflicts = [];
-  
-  for (let i = 0; i < cards.length; i++) {
-    const rank = cards[i];
-    const suit = assignedSuits[i];
-    
-    if (!rankSuitMap.has(rank)) {
-      rankSuitMap.set(rank, []);
-    }
-    
-    // Check if this rank already has this suit assigned
-    if (rankSuitMap.get(rank).includes(suit)) {
-      conflicts.push(i); // Store the position of the conflict
-    } else {
-      rankSuitMap.get(rank).push(suit);
-    }
-  }
-  
-  // Resolve conflicts by swapping
-  for (const conflictPos of conflicts) {
-    const rank = cards[conflictPos];
-    const currentSuit = assignedSuits[conflictPos];
-    const usedSuits = rankSuitMap.get(rank);
-    
-    // Try to swap with a later position
-    let swapped = false;
-    
-    // First, try to swap with a position that has the same suit type
-    // This helps preserve the pattern structure (e.g., keeping 3 clubs in trip patterns)
-    for (let i = conflictPos + 1; i < cards.length; i++) {
-      const laterRank = cards[i];
-      const laterSuit = assignedSuits[i];
-      
-      // Skip if same rank
-      if (laterRank === rank) continue;
-      
-      // Skip if this would create a new conflict
-      if (rankSuitMap.get(laterRank)?.includes(currentSuit)) continue;
-      
-      // Skip if the conflicting rank already has the later suit
-      if (usedSuits.includes(laterSuit)) continue;
-      
-      // Perform the swap
-      [assignedSuits[conflictPos], assignedSuits[i]] = [assignedSuits[i], assignedSuits[conflictPos]];
-      
-      // Update rank-suit mappings
-      rankSuitMap.get(rank).push(assignedSuits[conflictPos]);
-      if (!rankSuitMap.has(laterRank)) {
-        rankSuitMap.set(laterRank, []);
+      // Try to handle double suited patterns
+      if (pairs.length === 2 && singles.length === 0) {
+        // AABB structure
+        const firstPair = pairs[0];
+        return cardsCopy.map(card => card === firstPair ? colors.club : colors.heart);
+      } else if (pairs.length === 1 && singles.length === 2) {
+        // e.g., AABC structure
+        const pairRank = pairs[0];
+        const result = [];
+        let singleIndex = 0;
+        
+        for (const card of cardsCopy) {
+          if (card === pairRank) {
+            result.push(colors.club);
+          } else {
+            result.push(singleIndex === 0 ? colors.heart : colors.diamond);
+            singleIndex++;
+          }
+        }
+        return result;
+      } else {
+        throw new Error(`Unsupported double pattern structure: ${JSON.stringify(rankCounts)}`);
       }
-      rankSuitMap.get(laterRank).push(currentSuit);
       
-      swapped = true;
-      break;
-    }
-    
-    // If no swap was possible, this is an impossible case
-    if (!swapped) {
-      throw new Error(`Cannot resolve suit conflicts for ${pattern} pattern with current rank distribution`);
-    }
+    case 'trip_high':
+    case 'trip_low':
+      // 3 cards same suit, 1 different
+      if (pairs.length > 0) {
+        const colorMap = {};
+        let highSuitCount = 0;
+        
+        // Map distinct ranks to suits
+        for (const rank of Object.keys(rankCounts)) {
+          if (rank === pairs[0]) {
+            colorMap[rank] = colors.club;
+          } else {
+            colorMap[rank] = colors.heart;
+          }
+        }
+        
+        // Apply colors based on rank
+        return cardsCopy.map(card => colorMap[card]);
+      } else {
+        throw new Error(`Trip pattern without pairs: ${JSON.stringify(rankCounts)}`);
+      }
+      
+    case 'single_high':
+    case 'single_low':
+      // More unique distribution
+      if (pairs.length > 0) {
+        const colorMap = {};
+        const uniqueRanks = Object.keys(rankCounts);
+        const suitList = [colors.club, colors.heart, colors.diamond, colors.spade];
+        
+        // Assign suits to ranks
+        uniqueRanks.forEach((rank, index) => {
+          colorMap[rank] = suitList[index % 4];
+        });
+        
+        return cardsCopy.map(card => colorMap[card]);
+      } else {
+        throw new Error(`Single pattern without pairs: ${JSON.stringify(rankCounts)}`);
+      }
+      
+    case 'rainbow':
+      // All different suits
+      return [colors.club, colors.heart, colors.diamond, colors.spade].slice(0, cardsCopy.length);
+      
+    default:
+      throw new Error(`Unknown pattern type: ${pattern}`);
   }
-  
-  // Convert suits to colors
-  const result = assignedSuits.map(suit => colors[suit]);
-  
-  // Final verification
-  const finalMap = new Map();
-  for (let i = 0; i < cards.length; i++) {
-    const rank = cards[i];
-    const color = result[i];
-    
-    if (!finalMap.has(rank)) {
-      finalMap.set(rank, new Set());
-    }
-    
-    if (finalMap.get(rank).has(color)) {
-      throw new Error(`Verification failed: Duplicate color ${color} for rank ${rank}`);
-    }
-    
-    finalMap.get(rank).add(color);
-  }
-  
-  return result;
 }
 // Render actions with mixed strategy support
 function renderActions(actions) {
