@@ -251,7 +251,7 @@ function renderHandVisualization(rankCombo, patternId) {
     `;
   }
 }
-// Get colors for pattern - with specific error types
+// Get colors for pattern with correct card constraints
 function getColorsForPattern(pattern, cards) {
   // Color mapping (with better contrast for dark mode)
   const colors = {
@@ -261,118 +261,88 @@ function getColorsForPattern(pattern, cards) {
     spade: '#FFD866'    // Yellow
   };
   
-  // Create a copy of the cards for analysis
-  const cardsCopy = [...cards];
+  // Define suit order for each pattern (cards displayed high to low)
+  const suitOrders = {
+    'mono': ['club', 'club', 'club', 'club'],          // All same suit
+    'double': ['club', 'club', 'heart', 'heart'],      // Two high cards same suit, two low cards same suit
+    'trip_high': ['club', 'club', 'club', 'heart'],    // Three high cards same suit, low card different
+    'trip_low': ['heart', 'club', 'club', 'club'],     // High card different, three low cards same suit
+    'single_high': ['club', 'club', 'heart', 'diamond'], // Highest card and one other same suit
+    'single_low': ['heart', 'diamond', 'club', 'club'], // Two lowest cards same suit
+    'rainbow': ['club', 'heart', 'diamond', 'spade']   // All different suits
+  };
   
-  // Count frequencies of each rank
+  // Get the appropriate suit order for this pattern
+  const suitOrder = suitOrders[pattern] || suitOrders['rainbow'];
+  
+  // Count frequencies to identify pairs, trips, etc.
   const rankCounts = {};
-  for (const rank of cardsCopy) {
+  for (const rank of cards) {
     rankCounts[rank] = (rankCounts[rank] || 0) + 1;
   }
   
-  // Debug information about hand structure
-  const hasTriple = Object.values(rankCounts).some(count => count >= 3);
-  const hasPair = Object.values(rankCounts).some(count => count === 2);
-  const pairs = Object.entries(rankCounts).filter(([rank, count]) => count >= 2).map(([rank]) => rank);
-  const singles = Object.entries(rankCounts).filter(([rank, count]) => count === 1).map(([rank]) => rank);
+  // We need to respect the constraint that cards with the same rank must have different suits
+  // Create a map from rank to the suits assigned
+  const rankToSuits = {};
   
-  // Validate pattern against hand structure
-  if (pattern === 'mono' && pairs.length > 0) {
-    throw new Error(`Cannot render mono pattern (${pattern}) with pairs: ${pairs.join(',')}`);
+  // Create a result array with the right length
+  const result = new Array(cards.length);
+  
+  // First, handle unpaired cards (which have more flexibility)
+  for (let i = 0; i < cards.length; i++) {
+    const rank = cards[i];
+    // Skip paired cards for now
+    if (rankCounts[rank] > 1) continue;
+    
+    // This is a single card (not paired) - assign the suit from suitOrder
+    const suit = suitOrder[i];
+    result[i] = colors[suit];
+    
+    // Record that we've used this suit for this rank
+    if (!rankToSuits[rank]) rankToSuits[rank] = [];
+    rankToSuits[rank].push(suit);
   }
   
-  if ((pattern === 'trip_high' || pattern === 'trip_low') && hasTriple) {
-    throw new Error(`Cannot render trip pattern (${pattern}) with triple: ${pairs.join(',')}`);
+  // Now handle paired cards - these need different suits
+  // Group card positions by rank
+  const positionsByRank = {};
+  for (let i = 0; i < cards.length; i++) {
+    const rank = cards[i];
+    if (rankCounts[rank] > 1) {
+      if (!positionsByRank[rank]) positionsByRank[rank] = [];
+      positionsByRank[rank].push(i);
+    }
   }
   
-  // Check for impossible cases based on pattern
-  if (pattern === 'double' && !hasPair) {
-    throw new Error(`Double suited pattern requires at least one pair, found: ${JSON.stringify(rankCounts)}`);
+  // Assign suits to paired ranks
+  for (const [rank, positions] of Object.entries(positionsByRank)) {
+    // For each paired rank, assign different suits
+    const availableSuits = ['club', 'heart', 'diamond', 'spade']
+      .filter(suit => !rankToSuits[rank] || !rankToSuits[rank].includes(suit));
+    
+    if (availableSuits.length < positions.length) {
+      throw new Error(`Not enough suits available for rank ${rank}`);
+    }
+    
+    // Assign each position a different suit
+    for (let i = 0; i < positions.length; i++) {
+      const pos = positions[i];
+      result[pos] = colors[availableSuits[i]];
+      
+      // Record that we've used this suit for this rank
+      if (!rankToSuits[rank]) rankToSuits[rank] = [];
+      rankToSuits[rank].push(availableSuits[i]);
+    }
   }
   
-  if ((pattern === 'trip_high' || pattern === 'trip_low') && pairs.length === 0) {
-    throw new Error(`Trip pattern (${pattern}) requires at least one pair, found: ${JSON.stringify(rankCounts)}`);
+  // Make sure we've assigned a color to every position
+  for (let i = 0; i < cards.length; i++) {
+    if (!result[i]) {
+      throw new Error(`Failed to assign color to position ${i}`);
+    }
   }
   
-  // Define ideal suits for each pattern
-  let idealSuits;
-  switch (pattern) {
-    case 'mono':
-      // All the same suit
-      return cardsCopy.map(() => colors.club);
-      
-    case 'double':
-      // Try to handle double suited patterns
-      if (pairs.length === 2 && singles.length === 0) {
-        // AABB structure
-        const firstPair = pairs[0];
-        return cardsCopy.map(card => card === firstPair ? colors.club : colors.heart);
-      } else if (pairs.length === 1 && singles.length === 2) {
-        // e.g., AABC structure
-        const pairRank = pairs[0];
-        const result = [];
-        let singleIndex = 0;
-        
-        for (const card of cardsCopy) {
-          if (card === pairRank) {
-            result.push(colors.club);
-          } else {
-            result.push(singleIndex === 0 ? colors.heart : colors.diamond);
-            singleIndex++;
-          }
-        }
-        return result;
-      } else {
-        throw new Error(`Unsupported double pattern structure: ${JSON.stringify(rankCounts)}`);
-      }
-      
-    case 'trip_high':
-    case 'trip_low':
-      // 3 cards same suit, 1 different
-      if (pairs.length > 0) {
-        const colorMap = {};
-        let highSuitCount = 0;
-        
-        // Map distinct ranks to suits
-        for (const rank of Object.keys(rankCounts)) {
-          if (rank === pairs[0]) {
-            colorMap[rank] = colors.club;
-          } else {
-            colorMap[rank] = colors.heart;
-          }
-        }
-        
-        // Apply colors based on rank
-        return cardsCopy.map(card => colorMap[card]);
-      } else {
-        throw new Error(`Trip pattern without pairs: ${JSON.stringify(rankCounts)}`);
-      }
-      
-    case 'single_high':
-    case 'single_low':
-      // More unique distribution
-      if (pairs.length > 0) {
-        const colorMap = {};
-        const uniqueRanks = Object.keys(rankCounts);
-        const suitList = [colors.club, colors.heart, colors.diamond, colors.spade];
-        
-        // Assign suits to ranks
-        uniqueRanks.forEach((rank, index) => {
-          colorMap[rank] = suitList[index % 4];
-        });
-        
-        return cardsCopy.map(card => colorMap[card]);
-      } else {
-        throw new Error(`Single pattern without pairs: ${JSON.stringify(rankCounts)}`);
-      }
-      
-    case 'rainbow':
-      // All different suits
-      return [colors.club, colors.heart, colors.diamond, colors.spade].slice(0, cardsCopy.length);
-      
-    default:
-      throw new Error(`Unknown pattern type: ${pattern}`);
-  }
+  return result;
 }
 // Render actions with mixed strategy support
 function renderActions(actions) {
