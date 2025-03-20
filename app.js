@@ -251,7 +251,125 @@ function renderHandVisualization(rankCombo, patternId) {
     `;
   }
 }
-// Get colors for pattern with correct card constraints
+// Render actions with mixed strategy support
+function renderActions(actions) {
+  // Safely handle potentially missing actions
+  if (!actions) {
+    return `<div class="actions"><div class="no-actions">No action data available</div></div>`;
+  }
+  
+  // Process SB open action (first action)
+  const sbOpenPct = actions["SB open"] || 0;
+  let sbOpen = "Fold";
+  if (sbOpenPct > 0) {
+    sbOpen = "Raise";
+    // Show percentage only if it's less than 99%
+    if (sbOpenPct < 99 && sbOpenPct > 0) {
+      sbOpen = `Raise[${Math.round(sbOpenPct)}%]`;
+    }
+  }
+  
+  // Process SB response to 3bet (second action)
+  let sbResponse = "Fold";
+  const sb4betPct = actions["SB 4bet"] || 0;
+  const sbCallPct = actions["SB Cv3bet"] || 0;
+  const sbFoldVs3betPct = 100 - sb4betPct - sbCallPct;
+  
+  // Add actions that exceed 5% threshold
+  const sbResponseActions = [];
+  if (sb4betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (sb4betPct >= 99) sbResponseActions.push("4bet");
+    else sbResponseActions.push(`4bet[${Math.round(sb4betPct)}%]`);
+  }
+  if (sbCallPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (sbCallPct >= 99) sbResponseActions.push("call");
+    else sbResponseActions.push(`call[${Math.round(sbCallPct)}%]`);
+  }
+  if (sbFoldVs3betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (sbFoldVs3betPct >= 99) sbResponseActions.push("fold");
+    else sbResponseActions.push(`fold[${Math.round(sbFoldVs3betPct)}%]`);
+  }
+  
+  // If we have mixed second actions, join them with slashes
+  if (sbResponseActions.length > 1) {
+    sbResponse = sbResponseActions.join('/');
+  } 
+  // If only one action exceeds 5%, use that
+  else if (sbResponseActions.length === 1) {
+    sbResponse = sbResponseActions[0];
+  }
+  
+  // Process BB first action vs open
+  let bbAction = "Fold";
+  const bb3betPct = actions["BB 3bet"] || 0;
+  const bbCallPct = actions["BB call"] || 0;
+  const bbFoldPct = 100 - bb3betPct - bbCallPct;
+  
+  // For BB first action, show the majority action with percentage if mixed
+  if (bb3betPct > bbCallPct && bb3betPct > bbFoldPct) {
+    bbAction = bb3betPct < 99 ? `3bet[${Math.round(bb3betPct)}%]` : "3bet";
+  } else if (bbCallPct > bb3betPct && bbCallPct > bbFoldPct) {
+    bbAction = bbCallPct < 99 ? `call[${Math.round(bbCallPct)}%]` : "call";
+  } else if (bbFoldPct > bb3betPct && bbFoldPct > bbCallPct) {
+    bbAction = bbFoldPct < 99 ? `fold[${Math.round(bbFoldPct)}%]` : "fold";
+  } 
+  // Handle exact ties by showing both
+  else if (bb3betPct === bbCallPct && bb3betPct > bbFoldPct) {
+    bbAction = `3bet[${Math.round(bb3betPct)}%]/call[${Math.round(bbCallPct)}%]`;
+  } else if (bb3betPct === bbFoldPct && bb3betPct > bbCallPct) {
+    bbAction = `3bet[${Math.round(bb3betPct)}%]/fold[${Math.round(bbFoldPct)}%]`;
+  } else if (bbCallPct === bbFoldPct && bbCallPct > bb3betPct) {
+    bbAction = `call[${Math.round(bbCallPct)}%]/fold[${Math.round(bbFoldPct)}%]`;
+  }
+  // Perfect three-way tie (very unlikely)
+  else if (bb3betPct === bbCallPct && bb3betPct === bbFoldPct) {
+    bbAction = `3bet[${Math.round(bb3betPct)}%]/call[${Math.round(bbCallPct)}%]/fold[${Math.round(bbFoldPct)}%]`;
+  }
+  
+  // Process BB response to 4bet (second action)
+  let bbResponse = "Fold";
+  const bb5betPct = actions["BB 5bet"] || 0;
+  const bbCv4betPct = actions["BB Cv4bet"] || 0;
+  const bbFv4betPct = actions["BB Fv4bet"] || 0;
+  
+  // Add actions that exceed 5% threshold
+  const bbResponseActions = [];
+  if (bb5betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (bb5betPct >= 99) bbResponseActions.push("5bet");
+    else bbResponseActions.push(`5bet[${Math.round(bb5betPct)}%]`);
+  }
+  if (bbCv4betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (bbCv4betPct >= 99) bbResponseActions.push("call");
+    else bbResponseActions.push(`call[${Math.round(bbCv4betPct)}%]`);
+  }
+  if (bbFv4betPct >= 5) {
+    // Skip percentage if it's ≥99%
+    if (bbFv4betPct >= 99) bbResponseActions.push("fold");
+    else bbResponseActions.push(`fold[${Math.round(bbFv4betPct)}%]`);
+  }
+  
+  // If we have mixed second actions, join them with slashes
+  if (bbResponseActions.length > 1) {
+    bbResponse = bbResponseActions.join('/');
+  } 
+  // If only one action exceeds 5%, use that
+  else if (bbResponseActions.length === 1) {
+    bbResponse = bbResponseActions[0];
+  }
+  
+  // Return the formatted actions with pipe separator
+  return `
+    <div class="actions actions-horizontal">
+      <div class="sb-action">SB: ${sbOpen} | ${sbResponse}</div>
+      <div class="bb-action">BB: ${bbAction} | ${bbResponse}</div>
+    </div>
+  `;
+}
 // Get colors for pattern with correct card constraints
 function getColorsForPattern(pattern, cards) {
   // Color mapping (with better contrast for dark mode)
