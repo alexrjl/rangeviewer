@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   createThemeToggle();
   
   // Load the compressed JSON data
-  fetch('comprangedict.json')
+  fetch('comprangedictFixed.json')
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error loading data:', error);
       resultsContainer.innerHTML = `
         <div class="error-message">
-          <p>Error loading data. Please check if the comprangedict.json file exists and is correctly formatted.</p>
+          <p>Error loading data. Please check if the comprangedictFixed.json file exists and is correctly formatted.</p>
           <p>Technical details: ${error.message}</p>
         </div>
       `;
