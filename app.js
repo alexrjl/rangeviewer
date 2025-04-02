@@ -67,11 +67,20 @@ function createThemeToggle() {
 function setupEventListeners() {
   // Handle input changes
   searchInput.addEventListener('input', debounce(handleSearch, 100));
-  
+
   // Handle clear button
   clearButton.addEventListener('click', () => {
     searchInput.value = '';
     resultsContainer.innerHTML = '<div class="initial-message">Enter card ranks to see matching hands</div>';
+    searchInput.focus(); // <-- ADD THIS LINE to return focus to the input
+  });
+
+  // Handle Delete key press on search input
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Delete') {
+      searchInput.value = '';
+      resultsContainer.innerHTML = '<div class="initial-message">Enter card ranks to see matching hands</div>';
+    }
   });
 }
 
